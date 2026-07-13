@@ -1,0 +1,14 @@
+import 'routing_modes_table.drift';
+
+CREATE TABLE IF NOT EXISTS vpn_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  zoned_date_time TEXT NOT NULL,
+  protocol_name TEXT NOT NULL,
+  decision INTEGER NOT NULL,
+  source_ip_address TEXT NOT NULL,
+  destination_ip_address TEXT NOT NULL,
+  source_port TEXT,
+  destination_port TEXT,
+  domain TEXT,
+  FOREIGN KEY (decision) REFERENCES routing_modes(id)
+);

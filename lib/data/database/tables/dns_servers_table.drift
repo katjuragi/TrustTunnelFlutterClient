@@ -1,0 +1,8 @@
+import 'servers_table.drift';
+
+CREATE TABLE IF NOT EXISTS dns_servers(
+  server_id INTEGER NOT NULL,
+  data TEXT NOT NULL,
+  PRIMARY KEY (server_id, data),
+  FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+);

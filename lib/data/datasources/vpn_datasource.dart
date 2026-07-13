@@ -1,0 +1,110 @@
+import 'package:trusttunnel/data/model/routing_profile_data.dart';
+import 'package:trusttunnel/data/model/server_data.dart';
+import 'package:trusttunnel/data/model/vpn_log.dart';
+import 'package:trusttunnel/data/model/vpn_state.dart';
+
+/// {@template vpn_data_source}
+/// Low-level abstraction over the VPN platform/backend.
+///
+/// `VpnDataSource` represents the closest Dart-side interface to the platform
+/// implementation. It exposes:
+/// - continuous streams of VPN state and logs,
+/// - imperative commands to start and stop the VPN,
+/// - a one-shot state request.
+///
+/// This interface is intentionally minimal and backend-oriented. Higher-level
+/// orchestration (restarts, state caching, UI concerns) is expected to be
+/// handled by repositories or controllers above this layer.
+/// {@endtemplate}
+abstract class VpnDataSource {
+  /// {@template vpn_data_source_state_stream}
+  /// Stream of VPN state updates.
+  ///
+  /// The stream emits new [VpnState] values whenever the backend reports a state
+  /// change. The exact frequency and timing depend on the platform implementation.
+  ///
+  /// Implementations preserve the backend's broadcast semantics.
+  /// {@endtemplate}
+  Stream<VpnState> get vpnState;
+
+  /// {@template vpn_data_source_logs_stream}
+  /// Stream of VPN log events.
+  ///
+  /// Each emitted [VpnLog] represents a single log entry produced by the backend.
+  /// Ordering is preserved as provided by the platform.
+  /// Implementations preserve the backend's broadcast semantics.
+  /// {@endtemplate}
+  Stream<VpnLog> get vpnLogs;
+
+  /// {@template vpn_data_source_start}
+  /// Starts the VPN session using the provided configuration inputs.
+  ///
+  /// Implementations are responsible for:
+  /// - translating domain models into backend-specific configuration,
+  /// - initiating the VPN engine/service on the platform,
+  /// - making state and log streams available.
+  ///
+  /// This method completes when the start request has been issued to the backend,
+  /// not necessarily when the VPN reaches a connected state.
+  /// {@endtemplate}
+  Future<void> start({
+    required ServerData server,
+    required RoutingProfileData routingProfile,
+    required List<String> excludedRoutes,
+  });
+
+  /// {@template vpn_data_source_update_configuration}
+  /// Updates the VPN configuration of an existing system VPN profile.
+  ///
+  /// This method has effect **only on iOS**. On other platforms it is expected
+  /// to be a no-op.
+  ///
+  /// The update is applied to the **system-level VPN configuration** associated
+  /// with the provided [server]. As a result, the changes become visible in the
+  /// iOS Settings app under the selected VPN profile.
+  ///
+  /// Implementations are responsible for:
+  /// - mapping domain models to the platform-specific configuration format,
+  /// - updating the existing VPN profile rather than creating a new one,
+  /// - preserving platform-managed metadata where applicable.
+  /// {@endtemplate}
+  Future<void> updateConfiguration({
+    required ServerData server,
+    required RoutingProfileData routingProfile,
+    required List<String> excludedRoutes,
+  });
+
+  /// {@template vpn_data_source_delete_configuration}
+  /// Deletes an existing system VPN configuration.
+  ///
+  /// This method has effect **only on iOS**. On other platforms it is expected
+  /// to be a no-op.
+  ///
+  /// The call removes the **system-level VPN profile** previously created or
+  /// updated by this data source. As a result, the corresponding VPN entry
+  /// disappears from the iOS Settings app.
+  ///
+  /// This method does not implicitly manage the VPN session lifecycle. If the
+  /// VPN tunnel is currently running, implementations are expected to stop the
+  /// active session before deleting the configuration, or require the caller
+  /// to do so explicitly.
+  /// {@endtemplate}
+  Future<void> deleteConfiguration();
+
+  /// {@template vpn_data_source_stop}
+  /// Stops the VPN session.
+  ///
+  /// Implementations should terminate the backend VPN engine and release
+  /// associated resources. After completion, [vpnState] is expected to
+  /// eventually emit [VpnState.disconnected].
+  /// {@endtemplate}
+  Future<void> stop();
+
+  /// {@template vpn_data_source_request_state}
+  /// Requests the current VPN state from the backend.
+  ///
+  /// Unlike [vpnState], this method performs a one-time request and returns
+  /// the most recent state known to the platform.
+  /// {@endtemplate}
+  Future<VpnState> requestState();
+}

@@ -1,0 +1,23 @@
+import 'protocols_table.drift';
+import 'routing_profiles_table.drift';
+
+CREATE TABLE IF NOT EXISTS servers(
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  ip_address TEXT NOT NULL,
+  name TEXT NOT NULL,
+  domain TEXT NOT NULL,
+  login TEXT NOT NULL,
+  password TEXT NOT NULL,
+  vpn_protocol_id INTEGER NOT NULL,                         
+  routing_profile_id INTEGER NOT NULL,
+  selected BOOLEAN NOT NULL DEFAULT false,
+  ipv6_enabled BOOLEAN NOT NULL DEFAULT true,
+  tls_prefix TEXT,
+  custom_sni TEXT,
+  FOREIGN KEY (vpn_protocol_id) REFERENCES protocols(id),
+  FOREIGN KEY (routing_profile_id) REFERENCES routing_profiles(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_selected_server
+  ON servers(selected)
+  WHERE selected = 1;

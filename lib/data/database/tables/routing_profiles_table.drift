@@ -1,0 +1,8 @@
+import 'routing_modes_table.drift';
+
+CREATE TABLE IF NOT EXISTS routing_profiles(
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,  
+  name TEXT NOT NULL UNIQUE,
+  default_mode INTEGER NOT NULL,
+  FOREIGN KEY (default_mode) REFERENCES routing_modes(id)
+);

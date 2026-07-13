@@ -1,0 +1,44 @@
+import 'package:trusttunnel/common/error/model/presentation_exception.dart';
+import 'package:trusttunnel/data/model/server_data.dart';
+
+sealed class DeepLinkState {
+  final ServerData? parsedData;
+
+  const DeepLinkState(this.parsedData);
+
+  const factory DeepLinkState.initial() = _DeepLinkInitialState;
+  const factory DeepLinkState.idle(ServerData? parsedData) = _DeepLinkIdleState;
+  const factory DeepLinkState.loading(ServerData? parsedData) = _DeepLinkLoadingState;
+  const factory DeepLinkState.exception(
+    ServerData? parsedData, {
+    required PresentationException exception,
+  }) = _DeepLinkErroredState;
+
+  PresentationException? get error => this is _DeepLinkErroredState ? (this as _DeepLinkErroredState).exception : null;
+
+  bool get loading => this is _DeepLinkLoadingState;
+
+  @override
+  String toString() => 'DeepLinkState(type: $runtimeType, deepLink: $parsedData, loading: $loading)';
+}
+
+class _DeepLinkLoadingState extends DeepLinkState {
+  const _DeepLinkLoadingState(super.parsedData);
+}
+
+class _DeepLinkIdleState extends DeepLinkState {
+  const _DeepLinkIdleState(super.parsedData);
+}
+
+class _DeepLinkErroredState extends DeepLinkState {
+  final PresentationException exception;
+
+  const _DeepLinkErroredState(
+    super.parsedData, {
+    required this.exception,
+  });
+}
+
+class _DeepLinkInitialState extends _DeepLinkIdleState {
+  const _DeepLinkInitialState() : super(null);
+}

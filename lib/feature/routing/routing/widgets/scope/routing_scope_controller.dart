@@ -1,0 +1,23 @@
+import 'package:flutter/material.dart';
+import 'package:trusttunnel/common/error/model/presentation_exception.dart';
+import 'package:trusttunnel/common/error/model/presentation_field.dart';
+import 'package:trusttunnel/data/model/routing_profile.dart';
+
+abstract class RoutingScopeController {
+  abstract final List<RoutingProfile> routingList;
+  abstract final List<PresentationField> fieldErrors;
+  abstract final PresentationException? error;
+  abstract final bool loading;
+
+  abstract final void Function() fetchProfiles;
+  abstract final void Function({
+    required String id,
+    required String name,
+    required VoidCallback onSaved,
+  })
+  changeName;
+
+  abstract final void Function(String routingProfileId, VoidCallback onDeleted) deleteProfile;
+
+  abstract final void Function() pickProfileToChangeName;
+}

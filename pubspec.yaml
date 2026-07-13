@@ -1,0 +1,97 @@
+name: trusttunnel
+description: "Mobile VPN client for Android and iOS, built with Flutter"
+
+publish_to: 'none'
+
+version: 1.2.0
+
+environment:
+  flutter: 3.38.3
+  sdk: 3.10.1
+
+dependencies:
+  adg_share:
+    path: packages/adg_share
+  adguard_logger:
+    git:
+      url: https://github.com/AdguardTeam/adguard-dart-logger
+      ref: v1.0.3
+  app_links: 7.0.0
+  collection: 1.19.1
+  drift: 2.30.0
+  file_picker: 10.3.10
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_native_splash: 2.4.7
+  html: 0.15.6
+  intl: 0.20.2
+  intl_utils: 2.8.13
+  package_info_plus: 9.0.0
+  path_provider: 2.1.6
+  punycoder: 0.2.2
+  rxdart: 0.28.0
+  shared_preferences: 2.5.5
+  sqlite3_flutter_libs: 0.5.41
+  url_launcher: 6.3.2
+  vpn_plugin:
+    path: plugins/vpn_plugin
+
+dev_dependencies:
+  build_runner: 2.10.4
+  drift_dev: 2.30.0
+  flutter_lints: 6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/images/
+  fonts:
+    - family: IconFont
+      fonts:
+        - asset: assets/fonts/IconFont.ttf
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/roboto/Roboto-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/roboto/Roboto-ThinItalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/roboto/Roboto-Light.ttf
+          weight: 300
+        - asset: assets/fonts/roboto/Roboto-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/roboto/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/roboto/Roboto-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/roboto/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/roboto/Roboto-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/roboto/Roboto-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/roboto/Roboto-BoldItalic.ttf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/roboto/Roboto-Black.ttf
+          weight: 900
+        - asset: assets/fonts/roboto/Roboto-BlackItalic.ttf
+          weight: 900
+          style: italic
+
+flutter_intl:
+  enabled: true
+  generate: true
+  class_name: AppLocalizations
+  main_locale: en
+  arb_dir: lib/common/localization/arb
+  output_dir: lib/common/localization/generated
+  use_deferred_loading: false

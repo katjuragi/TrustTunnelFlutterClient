@@ -1,0 +1,4 @@
+enum VpnAspect {
+  vpn,
+  logs,
+}

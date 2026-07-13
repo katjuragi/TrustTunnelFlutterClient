@@ -1,0 +1,146 @@
+import 'package:flutter/material.dart';
+import 'package:trusttunnel/common/extensions/context_extensions.dart';
+import 'package:trusttunnel/common/logging/observers/logging_navigator_observer.dart';
+import 'package:trusttunnel/common/router/app_routes.dart';
+import 'package:trusttunnel/common/utils/navigation_utils.dart';
+import 'package:trusttunnel/data/model/server_data.dart';
+import 'package:trusttunnel/feature/deep_link/deep_link_scope.dart';
+import 'package:trusttunnel/feature/navigation/widgets/custom_navigation_rail.dart';
+import 'package:trusttunnel/feature/navigation/widgets/glass_bottom_bar.dart';
+import 'package:trusttunnel/feature/server/servers/widget/servers_screen.dart';
+import 'package:trusttunnel/feature/settings/app_logging/widgets/scope/app_logging_scope.dart';
+import 'package:trusttunnel/feature/settings/logs_manager/widgets/scope/logs_manager_scope.dart';
+import 'package:trusttunnel/feature/settings/settings/settings_screen.dart';
+import 'package:trusttunnel/feature/split_tunnel/split_tunnel_screen.dart';
+
+class NavigationScreen extends StatefulWidget {
+  const NavigationScreen({super.key});
+
+  @override
+  State<NavigationScreen> createState() => _NavigationScreenState();
+}
+
+class _NavigationScreenState extends State<NavigationScreen> {
+  final ValueNotifier<int> _selectedTabNotifier = ValueNotifier(0);
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  late final LoggingNavigatorObserver _navigatorObserver;
+
+  ServerData? _deepLinkData;
+
+  @override
+  void initState() {
+    super.initState();
+    _navigatorObserver = LoggingNavigatorObserver(
+      navigatorName: 'navigation',
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final fetchedDeepLink = DeepLinkScope.of(context).deepLinkData;
+    if (_deepLinkData != fetchedDeepLink) {
+      _deepLinkData = fetchedDeepLink;
+      if (_deepLinkData != null) {
+        _navigatorKey.currentState?.popUntil((f) => f.isFirst);
+        _onDestinationSelected(0, deepLinkData: _deepLinkData);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => LogsManagerScope(
+    child: AppLoggingScope(
+      child: ColoredBox(
+        color: context.colors.background,
+        child: SafeArea(
+          right: false,
+          bottom: false,
+          left: false,
+          child: Scaffold(
+            primary: false,
+            backgroundColor: context.colors.backgroundSystem,
+            body: SafeArea(
+              top: false,
+              child: context.isMobileBreakpoint
+                  ? _getContent()
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ValueListenableBuilder(
+                          valueListenable: _selectedTabNotifier,
+                          builder: (context, index, _) => CustomNavigationRail(
+                            selectedIndex: index,
+                            onDestinationSelected: _onDestinationSelected,
+                            destinations: NavigationUtils.getNavigationRailDestinations(context),
+                          ),
+                        ),
+                        Expanded(
+                          child: _getContent(),
+                        ),
+                      ],
+                    ),
+            ),
+            bottomNavigationBar: context.isMobileBreakpoint
+                ? ValueListenableBuilder(
+                    valueListenable: _selectedTabNotifier,
+                    builder: (context, index, _) => GlassBottomBar(
+                      selectedIndex: index,
+                      onDestinationSelected: _onDestinationSelected,
+                    ),
+                  )
+                : null,
+          ),
+        ),
+      ),
+    ),
+  );
+
+  // TODO: Make navigator works with deeplink in right way
+  // Konstantin Gorynin <k.gorynin@adguard.com>, 31 March 2026
+  Widget getScreenByIndex(
+    int selectedIndex, {
+    ServerData? deepLinkData,
+  }) => switch (selectedIndex) {
+    0 => ServersScreen(
+      deepLinkData: deepLinkData,
+    ),
+    1 => const SplitTunnelScreen(),
+    2 => const SettingsScreen(),
+    _ => throw Exception('Invalid index: $selectedIndex'),
+  };
+
+  Widget _getContent() => NavigatorPopHandler(
+    onPopWithResult: (_) => _navigatorKey.currentState!.maybePop(),
+    child: Navigator(
+      key: _navigatorKey,
+      observers: [_navigatorObserver],
+      onGenerateInitialRoutes: (_, _) => [
+        PageRouteBuilder(
+          settings: AppRoutes.servers.settings,
+          pageBuilder: (context, animation, secondaryAnimation) => const ServersScreen(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      ],
+    ),
+  );
+
+  void _onDestinationSelected(int selectedIndex, {ServerData? deepLinkData}) {
+    if (_selectedTabNotifier.value != selectedIndex || deepLinkData != null) {
+      _selectedTabNotifier.value = selectedIndex;
+      _navigatorKey.currentState!.pushAndRemoveUntil(
+        PageRouteBuilder(
+          settings: AppRoutes.byNavigationIndex(selectedIndex).settings,
+          pageBuilder: (context, animation, secondaryAnimation) => getScreenByIndex(
+            selectedIndex,
+            deepLinkData: deepLinkData,
+          ),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+        (_) => false,
+      );
+    }
+  }
+}

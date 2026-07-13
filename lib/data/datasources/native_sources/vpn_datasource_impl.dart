@@ -1,0 +1,272 @@
+import 'dart:async';
+
+import 'package:adguard_logger/adguard_logger.dart';
+import 'package:trusttunnel/common/extensions/model_extensions.dart';
+import 'package:trusttunnel/common/logging/extensions/vpn_logger_extension.dart';
+import 'package:trusttunnel/common/utils/upstream_protocol_encoder.dart';
+import 'package:trusttunnel/common/utils/validation_utils.dart';
+import 'package:trusttunnel/common/utils/vpn_mode_encoder.dart';
+import 'package:trusttunnel/data/datasources/vpn_datasource.dart';
+import 'package:trusttunnel/data/model/routing_mode.dart';
+import 'package:trusttunnel/data/model/routing_profile_data.dart';
+import 'package:trusttunnel/data/model/server_data.dart';
+import 'package:trusttunnel/data/model/vpn_log.dart';
+import 'package:trusttunnel/data/model/vpn_logging_payload.dart';
+import 'package:trusttunnel/data/model/vpn_state.dart';
+import 'package:trusttunnel/feature/vpn/domain/services/vpn_log_converter.dart';
+import 'package:vpn_plugin/models/configuration.dart';
+import 'package:vpn_plugin/models/endpoint.dart';
+import 'package:vpn_plugin/models/query_log_row.dart';
+import 'package:vpn_plugin/models/socks.dart';
+import 'package:vpn_plugin/models/tun.dart';
+import 'package:vpn_plugin/platform_api.g.dart' as p;
+import 'package:vpn_plugin/vpn_plugin.dart';
+
+/// {@template vpn_data_source_impl}
+/// Platform-backed implementation of [VpnDataSource].
+///
+/// This implementation adapts the generated plugin API ([VpnPlugin]) to the
+/// domain-level abstractions used by the app. Its responsibilities include:
+/// - converting platform enums and models into domain equivalents,
+/// - constructing a platform [Configuration] from domain models,
+/// - exposing platform streams as domain streams.
+///
+/// This class does not cache state or retry operations; it is a thin translation
+/// layer between Dart domain code and the platform channel.
+/// {@endtemplate}
+class VpnDataSourceImpl implements VpnDataSource {
+  final VpnPlugin _platformApi;
+
+  /// {@macro vpn_data_source_impl}
+  VpnDataSourceImpl({
+    required VpnPlugin vpnPlugin,
+  }) : _platformApi = vpnPlugin {
+    final platformStates = _platformApi.states;
+    final platformQueryLog = _platformApi.queryLog;
+    
+    _loggingVpnObserver = logger.extension<VpnLoggerExtension>();
+
+    final vpnState = platformStates.transform(
+      StreamTransformer<p.VpnManagerState, VpnState>.fromHandlers(
+        handleData: (data, sink) => sink.add(VpnStateFromApi.parse(data)),
+        handleDone: (sink) async {
+          await _platformApi.stop();
+          sink
+            ..add(VpnState.disconnected)
+            ..close();
+        },
+      ),
+    );
+    final vpnLogs = platformQueryLog.transform(
+      StreamTransformer<QueryLogRow, VpnLog>.fromHandlers(
+        handleData: (data, sink) => sink.add(VpnLogConverter().convert(data)),
+        handleDone: (sink) => sink.close(),
+      ),
+    );
+
+    _vpnState = _loggingVpnObserver?.observeStateStream(vpnState) ?? vpnState;
+    _vpnLogs = _loggingVpnObserver?.observeQueryLogStream(vpnLogs) ?? vpnLogs;
+  }
+
+  late final VpnLoggerExtension? _loggingVpnObserver;
+  late final Stream<VpnState> _vpnState;
+  late final Stream<VpnLog> _vpnLogs;
+
+  /// {@macro vpn_data_source_state_stream}
+  ///
+  /// Platform states are converted to [VpnState]. When the underlying platform
+  /// state stream completes, the VPN is explicitly stopped and a final
+  /// [VpnState.disconnected] value is emitted before closing the stream.
+  @override
+  Stream<VpnState> get vpnState => _vpnState;
+
+  /// {@macro vpn_data_source_logs_stream}
+  ///
+  /// Platform log rows are converted into domain [VpnLog] entries.
+  @override
+  Stream<VpnLog> get vpnLogs => _vpnLogs;
+
+  /// {@macro vpn_data_source_start}
+  ///
+  /// This implementation:
+  /// 1) derives exclusions based on the routing profile,
+  /// 2) constructs a platform [Endpoint] and [Configuration],
+  /// 3) invokes the platform `start` command.
+  @override
+  Future<void> start({
+    required ServerData server,
+    required RoutingProfileData routingProfile,
+    required List<String> excludedRoutes,
+  }) async {
+    final exclusions = _getExclusionsByMode(routingProfile);
+
+    final endPoint = Endpoint(
+      name: server.name,
+      hostName: server.domain,
+      hasIpv6: server.ipv6,
+      certificate: server.certificate?.data ?? '',
+      clientRandom: server.tlsPrefix ?? '',
+      customSni: server.customSni ?? '',
+      username: server.username,
+      password: server.password,
+      addresses: [
+        server.ipAddress,
+      ],
+      exclusions: exclusions,
+      dnsUpStreams: server.dnsServers,
+      upStreamProtocol: UpStreamProtocolEncoder().convert(
+        server.vpnProtocol,
+      ),
+    );
+
+    Future<void> command() => _platformApi.start(
+      configuration: Configuration(
+        vpnMode: VpnModeEncoder().convert(
+          routingProfile.defaultMode,
+        ),
+        endpoint: endPoint,
+        tun: Tun(
+          excludedRoutes: excludedRoutes,
+        ),
+        socks: const Socks(),
+      ),
+    );
+
+    if (_loggingVpnObserver != null) {
+      await _loggingVpnObserver.runCommand(
+        'start',
+        command,
+        payloadBuilder: () => VpnLoggingPayload.fromModels(
+          server: server,
+          routingProfile: routingProfile,
+          excludedRoutes: excludedRoutes,
+        ).toJson(),
+      );
+
+      return;
+    }
+
+    await command();
+  }
+
+  /// {@macro vpn_data_source_stop}
+  @override
+  Future<void> stop() => _loggingVpnObserver?.runCommand('stop', _platformApi.stop) ?? _platformApi.stop();
+
+  /// {@macro vpn_data_source_request_state}
+  ///
+  /// The platform state is converted into a domain [VpnState].
+  @override
+  Future<VpnState> requestState() async {
+    Future<VpnState> command() async {
+      final state = await _platformApi.getCurrentState();
+
+      return VpnStateFromApi.parse(state);
+    }
+
+    return _loggingVpnObserver?.runCommandWithResult('requestState', command) ?? command();
+  }
+
+  @override
+  Future<void> updateConfiguration({
+    required ServerData server,
+    required RoutingProfileData routingProfile,
+    required List<String> excludedRoutes,
+  }) async {
+    final exclusions = _getExclusionsByMode(routingProfile);
+
+    final endPoint = Endpoint(
+      name: server.name,
+      hostName: server.domain,
+      hasIpv6: server.ipv6,
+      username: server.username,
+      password: server.password,
+      addresses: [
+        server.ipAddress,
+      ],
+      exclusions: exclusions,
+      dnsUpStreams: server.dnsServers,
+      upStreamProtocol: UpStreamProtocolEncoder().convert(
+        server.vpnProtocol,
+      ),
+      customSni: server.customSni ?? '',
+      certificate: server.certificate?.data ?? '',
+      clientRandom: server.tlsPrefix ?? '',
+    );
+
+    Future<void> command() => _platformApi.updateConfiguration(
+      configuration: Configuration(
+        vpnMode: VpnModeEncoder().convert(
+          routingProfile.defaultMode,
+        ),
+        endpoint: endPoint,
+        tun: Tun(
+          excludedRoutes: excludedRoutes,
+        ),
+        socks: const Socks(),
+      ),
+    );
+
+    if (_loggingVpnObserver != null) {
+      await _loggingVpnObserver.runCommand(
+        'updateConfiguration',
+        command,
+        payloadBuilder: () => VpnLoggingPayload.fromModels(
+          server: server,
+          routingProfile: routingProfile,
+          excludedRoutes: excludedRoutes,
+        ).toJson(),
+      );
+
+      return;
+    }
+
+    await command();
+  }
+
+  @override
+  Future<void> deleteConfiguration() =>
+      _loggingVpnObserver?.runCommand(
+        'deleteConfiguration',
+        () => _platformApi.updateConfiguration(configuration: null),
+      ) ??
+      _platformApi.updateConfiguration(configuration: null);
+
+  /// Computes the effective exclusion list based on routing mode.
+  ///
+  /// Domains are normalized to include wildcard variants when appropriate.
+  List<String> _getExclusionsByMode(RoutingProfileData profile) {
+    final List<String> exclusions;
+
+    switch (profile.defaultMode) {
+      case RoutingMode.bypass:
+        exclusions = profile.vpnRules;
+      case RoutingMode.vpn:
+        exclusions = profile.bypassRules;
+    }
+
+    const wildCard = '*.';
+    final Set<String> parsedDomains = {};
+    final Set<String> parsedAddresses = {};
+
+    for (final exclusion in exclusions) {
+      final domainValue = ValidationUtils.tryParseDomain(exclusion, allowFirstLevel: true);
+
+      if (domainValue == null) {
+        parsedAddresses.add(exclusion);
+
+        continue;
+      }
+
+      parsedDomains.add(domainValue);
+      if (!domainValue.startsWith(wildCard)) {
+        parsedDomains.add('$wildCard$domainValue');
+      }
+    }
+
+    return {
+      ...parsedAddresses,
+      ...parsedDomains,
+    }.toList();
+  }
+}

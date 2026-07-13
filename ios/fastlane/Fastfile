@@ -1,0 +1,70 @@
+ensure_bundle_exec
+
+
+lane :build_simulator_app_and_zip do |options|
+    build_app(
+        scheme: ENV['CUSTOM_FASTLANE_SCHEMA'],
+        configuration: "Debug",
+        destination: "generic/platform=iOS Simulator",
+        skip_package_ipa: true,
+        output_directory: ENV['FASTLANE_BUILD_DIRECTORY'],
+        archive_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/#{ENV['CUSTOM_FASTLANE_BUILD_NAME']}.xcarchive",
+        build_path: ENV['FASTLANE_BUILD_DIRECTORY'],
+        derived_data_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/derived_data",
+        buildlog_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/logs",
+    )
+    zip(
+        path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/#{ENV['CUSTOM_FASTLANE_BUILD_NAME']}.xcarchive/Products/Applications/#{ENV['CUSTOM_FASTLANE_SCHEMA']}.app",
+        output_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/#{ENV['CUSTOM_FASTLANE_BUILD_NAME']}.app.zip"
+    )
+end
+
+lane :build_ipa do |options|
+    type = options[:type]
+
+    app_store_connect_api_key
+
+    # Set Release signing to match profiles installed by match_sync
+    match_type_name = type == "appstore" ? "AppStore" : "AdHoc"
+
+    signing_targets = ENV.fetch('SIGNING_TARGETS').split(',').map { |pair| pair.split(':', 2) }
+
+    signing_targets.each do |target_name, bundle_id|
+      update_code_signing_settings(
+        path: "Runner.xcodeproj",
+        use_automatic_signing: false,
+        team_id: ENV.fetch('TEAM_ID'),
+        code_sign_identity: "Apple Distribution",
+        profile_name: "match #{match_type_name} #{bundle_id}",
+        targets: [target_name],
+        build_configurations: ["Release"]
+      )
+    end
+
+    # Ensure the signing keychain is unlocked and in the search list
+    if ENV['MATCH_KEYCHAIN_NAME'] && !ENV['MATCH_KEYCHAIN_NAME'].empty?
+      unlock_keychain(
+        path: ENV['MATCH_KEYCHAIN_NAME'],
+        password: ENV.fetch('MATCH_KEYCHAIN_PASSWORD', ''),
+        add_to_search_list: true,
+        set_default: false
+      )
+    end
+
+    build_app(
+        scheme: ENV['CUSTOM_FASTLANE_SCHEMA'],
+        output_directory: ENV['FASTLANE_BUILD_DIRECTORY'],
+        output_name: "#{ENV['CUSTOM_FASTLANE_BUILD_NAME']}.ipa",
+        include_bitcode: false, # Deprecated in xcodebuild, crashed with error "cannot upload bitcode because bitcode is imbalanced"
+        include_symbols: true,
+        archive_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/#{ENV['CUSTOM_FASTLANE_BUILD_NAME']}.xcarchive",
+        derived_data_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/derived_data",
+        buildlog_path: "#{ENV['FASTLANE_BUILD_DIRECTORY']}/logs",
+        build_path: ENV['FASTLANE_BUILD_DIRECTORY'],
+        export_method: type == "appstore" ? "app-store" : "ad-hoc",
+        export_options: {
+            manageAppVersionAndBuildNumber: type == "appstore",
+            generateAppStoreInformation: true
+        }
+    )
+end

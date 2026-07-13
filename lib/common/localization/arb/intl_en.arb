@@ -1,0 +1,188 @@
+{
+  "@@locale": "en",
+  "appTitle": "Vpn",
+  "servers": "Servers",
+  "routing": "Routing",
+  "settings": "Settings",
+  "addServer": "Add server",
+  "add": "Add",
+  "editServer": "Edit server",
+  "serverName": "Server name",
+  "username": "Username",
+  "enterUsername": "Enter username",
+  "password": "Password",
+  "enterPassword": "Enter password",
+  "protocol": "Protocol",
+  "routingProfile": "Routing profile",
+  "enterDnsServerLabel": "DNS server addresses, one per line",
+  "enterDnsServerHint": "IP address, tls://, https://, quic://, h3://, or sdns://",
+  "enterDnsServerHelper": "If not specified, 46.243.231.30 (AdGuard DNS Non-filtering) is used",
+  "enterIpAddressLabel": "Address",
+  "enterIpAddressHint": "IPv4/IPv6 or domain",
+  "enterIpAddressHelper": "if port is not specified, 443 is used",
+  "enterDomainLabel": "Domain name from server certificate",
+  "enterDomainHint": "Domain or IP address",
+  "defaultProfile": "Default profile",
+  "serversEmptyTitle": "Create your first server",
+  "serversEmptyDescription": "Create a server for secure and anonymous data transfer",
+  "create": "Create",
+  "save": "Save",
+  "unknownError": "Unknown Error",
+  "nameAlreadyExistError": "This name is already used",
+  "ipAddressWrongFieldError": "Use the format x.x.x.x or x:x:x:x:x:x:x:x",
+  "domainWrongFieldError": "Use a domain name or IP address",
+  "dnsServersWrongFieldError": "Use IP addresses, tls://, https://, quic://, h3:// or sdns://",
+  "urlWrongFieldError": "Please check the URL: it looks incorrect",
+  "pleaseFillField": "Please fill out this field",
+  "editProfileName": "Edit name",
+  "deleteProfile": "Delete profile",
+  "deleteProfileDialogTitle": "Delete profile?",
+  "addProfile": "Add profile",
+  "enterRulesHint": "Routing rules can be of the following types:\n- Domains of any level\n- IP address\n- IP address with port\n- IP address with a mask",
+  "changeDefaultRoutingMode": "Change default routing",
+  "deleteAllRules": "Delete all rules",
+  "deleteAllRulesDialogTitle": "Delete all rules?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "deleteAllRulesDialogDescription": "All rules from {profileName} will be deleted",
+  "@deleteAllRulesDialogDescription": {
+    "placeholders": {
+      "profileName": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteProfileDescription": "{profileName} will be deleted",
+  "@deleteProfileDescription": {
+    "placeholders": {
+      "profileName": {
+        "type": "String"
+      }
+    }
+  },
+  "changeDefaultRoutingModeDialogDescription": "All traffic will be routed by default according to this rule",
+  "discardChanges": "Discard changes",
+  "discardChangesDialogTitle": "Discard changes?",
+  "discardChangesDialogDescription": "Are you sure you want to discard all changes?",
+  "about": "About",
+  "connectionLog": "Connection log",
+  "excludedRoutes": "Excluded routes",
+  "followUsOnGithub": "Follow us on Github",
+  "typeSomething": "Type something",
+  "deleteServer": "Delete server",
+  "deleteServerDialogTitle": "Delete server?",
+  "deleteServerDescription": "Server <b>{serverName}</b> will be deleted",
+  "@deleteServerDescription": {
+    "placeholders": {
+      "serverName": {
+        "type": "String"
+      }
+    }
+  },
+  "serverDeletedSnackbar": "Server <b>{serverName}</b> deleted",
+  "@serverDeletedSnackbar": {
+    "placeholders": {
+      "serverName": {
+        "type": "String"
+      }
+    }
+  },
+  "profileDeletedSnackbar": "Profile <b>{profileName}</b> deleted",
+  "@profileDeletedSnackbar": {
+    "placeholders": {
+      "profileName": {
+        "type": "String"
+      }
+    }
+  },
+  "changesSavedSnackbar": "Changes saved",
+  "serverCreatedSnackbar": "Server <b>{serverName}</b> created",
+  "@serverCreatedSnackbar": {
+    "placeholders": {
+      "serverName": {
+        "type": "String"
+      }
+    }
+  },
+  "profileCreatedSnackbar": "Profile <b>{profileName}</b> created",
+  "@profileCreatedSnackbar": {
+    "placeholders": {
+      "profileName": {
+        "type": "String"
+      }
+    }
+  },
+  "allRulesDeleted": "All rules deleted",
+  "quic": "QUIC",
+  "http2": "HTTP/2",
+  "bypass": "Bypass",
+  "vpn": "Vpn",
+  "profileNameLabel": "Profile name",
+  "customSniLabel": "Custom SNI",
+  "customSniHint": "example.com",
+  "customSniWrongFieldError": "Use the format example.com",
+  "clientRandomLabel": "Client Random, hex sequence",
+  "clientRandomHint": "abcdef, 0a0b0c/0f0f0f",
+  "clientRandomHelper": "Max length — 64 characters",
+  "pemLabel": "Self-signed certificate, PEM file",
+  "ipv6Label": "Allow IPv6 connections via the server",
+  "tlsOutOfBoundsError": "Mask and value should have the same length",
+  "tlsWrongFieldError": "Hex sequence only allows 0-9, a-f characters",
+  "tlsWrongValueError": "Value should have an even number of characters",
+  "tlsWrongMaskError": "Mask and value should have an even number of characters",
+  "somethingWentWrongSnackbar": "Something went wrong. Please try again later",
+  "appLogging": "App logging",
+  "downloadAppLogs": "Export app logs and system info",
+  "loggingLevel": "Logging level",
+  "loggingLevelBasic": "Default",
+  "loggingLevelDetailed": "Debug",
+  "loggingLevelDetailedDescription": "Logs extra events. Used for diagnosing problems",
+  "sensitiveData": "Sensitive data",
+  "sensitiveDataExcluded": "Stripped",
+  "sensitiveDataExcludedDescription": "Sensitive data is not logged",
+  "sensitiveDataIncluded": "Included",
+  "sensitiveDataIncludedDescription": "Logs may include sensitive data. Passwords and server access links are never logged",
+  "changeSensitiveDataLoggingDialogTitle": "Your logs may include sensitive data",
+  "changeSensitiveDataLoggingDialogDescription": "We recommend deleting app logs to remove any sensitive data before switching to Stripped",
+  "continueAnyway": "Continue anyway",
+  "confirm": "Confirm",
+  "deleteLogs": "Delete logs",
+  "share": "Share",
+  "exportCanceledSnackbar": "Export canceled",
+  "deleteAppLogs": "Delete app logs",
+  "deleteAppLogsDialogTitle": "Delete app logs?",
+  "deleteAppLogsDialogDescription": "App logs will be cleared. This will not delete your app settings or connection log",
+  "appLogsDeletedSnackbar": "App logs deleted",
+  "appLogsExportedSnackbar": "App logs exported",
+  "exportingLogs": "Exporting logs…",
+  "pasteFromClipboard": "Paste from clipboard",
+  "clipboardNoConfigLink": "No TrustTunnel link found in the clipboard",
+  "serverImportedSnackbar": "Server {name} added",
+  "@serverImportedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "configurations": "Configurations",
+  "splitTunneling": "Split tunneling",
+  "splitTunnelingAllApps": "All apps",
+  "splitTunnelingAllAppsDescription": "Tunnel traffic from every app",
+  "splitTunnelingOnlySelected": "Only selected apps",
+  "splitTunnelingOnlySelectedDescription": "VPN works only for the apps you pick",
+  "splitTunnelingAllExcept": "All apps except selected",
+  "splitTunnelingAllExceptDescription": "Selected apps bypass the VPN",
+  "splitTunnelingHint": "Changes apply on the next connection",
+  "splitTunnelingReconnect": "Reconnect to apply split tunneling changes",
+  "reconnect": "Reconnect",
+  "searchApps": "Search apps",
+  "appsLoadError": "Failed to load the app list",
+  "ping": "Ping",
+  "tapToConnect": "Tap to connect",
+  "tapToDisconnect": "Tap to disconnect",
+  "addServerToConnect": "Add a server to connect",
+  "vpnStateConnected": "Connected",
+  "vpnStateConnecting": "Connecting…",
+  "vpnStateDisconnected": "Disconnected"
+}

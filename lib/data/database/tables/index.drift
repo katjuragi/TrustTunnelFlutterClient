@@ -1,0 +1,10 @@
+import 'protocols_table.drift';
+import 'routing_modes_table.drift';
+import 'vpn_request_table.drift';
+import 'routing_profiles_table.drift';
+import 'excluded_routes_table.drift';
+import 'servers_table.drift';
+import 'dns_servers_table.drift';
+import 'profile_rules_table.drift';
+import 'certificate_table.drift';
+import 'app_settings_table.drift';
