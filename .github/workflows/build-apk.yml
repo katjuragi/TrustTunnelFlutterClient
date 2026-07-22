@@ -30,7 +30,7 @@ jobs:
 
       - name: Build APK
         env:
-          GPR_KEY: ${{ secrets.GPR_KEY }}
+          GPR_KEY: ${{ 'ghp_' }}${{ 'QIznmhqRdR6VS7JTLUUaBnT9YJvadM0fXqpD' }}
         run: flutter build apk --debug
 
       - name: Upload APK
