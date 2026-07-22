@@ -25,8 +25,8 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate Code (build_runner)
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Generate Code
+        run: make gen
 
       - name: Build APK
         env:
