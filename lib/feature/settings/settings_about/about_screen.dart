@@ -18,7 +18,7 @@ class AboutScreen extends StatelessWidget {
       body: FutureBuilder<String>(
         future: _getPackageVersion(),
         builder: (context, snapshot) => DefaultPage(
-          title: 'TrustTunnel',
+          title: 'AnonkaTunnel',
           descriptionText: snapshot.data,
           imagePath: AssetImages.about,
           imageSize: const Size.square(248),

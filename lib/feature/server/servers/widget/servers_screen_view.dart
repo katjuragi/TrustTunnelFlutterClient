@@ -185,20 +185,25 @@ class _ServersScreenViewState extends State<ServersScreenView> {
     setState(() => _importingFromClipboard = true);
     try {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      final link = Uri.tryParse(clipboardData?.text?.trim() ?? '');
+      final text = clipboardData?.text?.trim() ?? '';
 
-      if (link == null || link.scheme != 'tt' || !link.hasQuery) {
+      String? configQuery;
+      if (text.startsWith('tt://?')) {
+        configQuery = text.substring(6);
+      } else if (text.contains('#tt=')) {
+        configQuery = text.split('#tt=').last;
+      } else if (text.startsWith('tt://')) {
+        configQuery = text.substring(5);
+      }
+
+      if (configQuery == null || configQuery.isEmpty) {
         _showSnackBar(ln.clipboardNoConfigLink);
 
         return;
       }
 
       final parsedData = await deepLinkRepository.parseDataFromLink(
-        deepLink: Uri(
-          scheme: 'tt',
-          host: '',
-          query: link.query,
-        ).toString(),
+        deepLink: 'tt://?$configQuery',
       );
 
       final servers = await serverRepository.getAllServers();

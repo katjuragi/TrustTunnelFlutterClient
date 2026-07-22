@@ -35,7 +35,7 @@ class CustomConsoleAppender extends ConsoleLogAppender {
           _minLogLength,
         ),
       ),
-      name: 'TrustTunnel Log',
+      name: 'AnonkaTunnel Log',
       level: record.level.severity,
       error: record.error,
       stackTrace: record.stackTrace,

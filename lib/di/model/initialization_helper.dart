@@ -41,7 +41,7 @@ class InitializationHelperIo extends InitializationHelper {
 
     path = await ContainmentFileUtil.getPlatformContainmentDirectoryPath(
       'log',
-      appName: 'TrustTunnel',
+      appName: 'AnonkaTunnel',
       directoryName: 'Logs',
     );
 

@@ -47,43 +47,29 @@ class ServersConnectionPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       child: Column(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: connected || pending
-                  ? [
-                      BoxShadow(
-                        color: buttonColor.withValues(alpha: 0.55),
-                        blurRadius: 36,
-                        spreadRadius: 4,
-                      ),
-                    ]
-                  : const [],
-            ),
-            child: Material(
-              color: buttonColor,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: server == null ? null : () => _toggleVpn(context, server, vpnState),
-                child: SizedBox.square(
-                  dimension: _buttonSize,
-                  child: Center(
-                    child: pending
-                        ? RotatingWidget(
-                            duration: const Duration(seconds: 1),
-                            child: Icon(
-                              AssetIcons.update,
-                              size: 64,
-                              color: context.colors.specialStaticWhite,
-                            ),
-                          )
-                        : Icon(
-                            AssetIcons.powerSettingsNew,
+          Material(
+            color: buttonColor,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: server == null ? null : () => _toggleVpn(context, server, vpnState),
+              child: SizedBox.square(
+                dimension: _buttonSize,
+                child: Center(
+                  child: pending
+                      ? RotatingWidget(
+                          duration: const Duration(seconds: 1),
+                          child: Icon(
+                            AssetIcons.update,
                             size: 64,
                             color: context.colors.specialStaticWhite,
                           ),
-                  ),
+                        )
+                      : Icon(
+                          AssetIcons.powerSettingsNew,
+                          size: 64,
+                          color: context.colors.specialStaticWhite,
+                        ),
                 ),
               ),
             ),
