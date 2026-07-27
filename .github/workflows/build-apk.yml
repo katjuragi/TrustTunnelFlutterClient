@@ -21,7 +21,7 @@ jobs:
 
       - name: Verify package access
         env:
-          GPR_KEY: ${{ secrets.GPR_KEY }}
+          GPR_KEY: ${{ secrets.GPR_KEY || secrets.GPT }}
         run: |
           if [ -z "$GPR_KEY" ]; then
             echo "::error::Repository secret GPR_KEY is required to download TrustTunnelClient from GitHub Packages."
@@ -51,7 +51,7 @@ jobs:
 
       - name: Build APK
         env:
-          GPR_KEY: ${{ secrets.GPR_KEY }}
+          GPR_KEY: ${{ secrets.GPR_KEY || secrets.GPT }}
         run: flutter build apk --debug
 
       - name: Upload APK
