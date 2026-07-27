@@ -8,13 +8,25 @@ on:
   push:
     branches:
       - master
-      - codex/fix-split-tunneling-ui
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify package access
+        env:
+          GPR_KEY: ${{ secrets.GPR_KEY }}
+        run: |
+          if [ -z "$GPR_KEY" ]; then
+            echo "::error::Repository secret GPR_KEY is required to download TrustTunnelClient from GitHub Packages."
+            exit 1
+          fi
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -36,15 +48,6 @@ jobs:
 
       - name: Generate Code
         run: make gen
-
-      - name: Verify package access
-        env:
-          GPR_KEY: ${{ secrets.GPR_KEY }}
-        run: |
-          if [ -z "$GPR_KEY" ]; then
-            echo "::error::Repository secret GPR_KEY is required to download TrustTunnelClient from GitHub Packages."
-            exit 1
-          fi
 
       - name: Build APK
         env:
