@@ -175,8 +175,39 @@
   "splitTunnelingAllExceptDescription": "Selected apps bypass the VPN",
   "splitTunnelingHint": "Changes apply on the next connection",
   "splitTunnelingReconnect": "Reconnect to apply split tunneling changes",
+  "splitTunnelingSaveError": "Failed to save split tunneling settings",
+  "splitTunnelingAllAppsActive": "All apps use the VPN",
+  "splitTunnelingAppsSection": "Apps ({count})",
+  "@splitTunnelingAppsSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "splitTunnelingSystemAppsSection": "System ({count})",
+  "@splitTunnelingSystemAppsSection": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectedAppsCount": "{count} selected",
+  "@selectedAppsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "reconnect": "Reconnect",
+  "retry": "Retry",
+  "retrySave": "Retry saving",
+  "savingChanges": "Saving changes…",
+  "savedAutomatically": "Saved automatically",
   "searchApps": "Search apps",
+  "noAppsFound": "No apps found",
   "appsLoadError": "Failed to load the app list",
   "ping": "Ping",
   "tapToConnect": "Tap to connect",

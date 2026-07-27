@@ -43,16 +43,6 @@ class GlassBottomBar extends StatelessWidget {
                     (isDark ? Colors.white : context.colors.background).withValues(alpha: isDark ? 0.06 : 0.55),
                   ],
                 ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: isDark ? 0.16 : 0.6),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
               ),
               child: Row(
                 children: [

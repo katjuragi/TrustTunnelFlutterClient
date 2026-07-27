@@ -67,8 +67,11 @@ class NativeVpnImpl(
 
     override fun onStateChanged(state: Int) {
         log.info("onStateChanged($state)")
-        currentState = VpnManagerState.entries[state]
-        postEvent(state)
+        currentState = VpnManagerState.entries.getOrElse(state) {
+            log.warn("Unknown VPN state: $state")
+            VpnManagerState.DISCONNECTED
+        }
+        postEvent(currentState.ordinal)
     }
 
     override fun onConnectionInfo(info: String) {

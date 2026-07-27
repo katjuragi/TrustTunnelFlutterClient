@@ -18,16 +18,21 @@ object SplitTunnelStore {
     private const val KEY_MODE = "mode"
     private const val KEY_PACKAGES = "packages"
 
-    fun mode(ctx: Context): Int = prefs(ctx).getInt(KEY_MODE, MODE_ALL_APPS)
+    fun mode(ctx: Context): Int =
+        sanitizeMode(prefs(ctx).getInt(KEY_MODE, MODE_ALL_APPS))
 
     fun packages(ctx: Context): Set<String> =
-        prefs(ctx).getStringSet(KEY_PACKAGES, emptySet()) ?: emptySet()
+        prefs(ctx).getStringSet(KEY_PACKAGES, emptySet())?.toSet() ?: emptySet()
 
-    fun save(ctx: Context, mode: Int, packages: Set<String>) {
+    fun save(ctx: Context, mode: Int, packages: Set<String>): Boolean =
         prefs(ctx).edit()
-            .putInt(KEY_MODE, mode)
-            .putStringSet(KEY_PACKAGES, packages)
-            .apply()
+            .putInt(KEY_MODE, sanitizeMode(mode))
+            .putStringSet(KEY_PACKAGES, packages.toSet())
+            .commit()
+
+    private fun sanitizeMode(mode: Int): Int = when (mode) {
+        MODE_ALL_APPS, MODE_ONLY_SELECTED, MODE_ALL_EXCEPT_SELECTED -> mode
+        else -> MODE_ALL_APPS
     }
 
     private fun prefs(ctx: Context) =
