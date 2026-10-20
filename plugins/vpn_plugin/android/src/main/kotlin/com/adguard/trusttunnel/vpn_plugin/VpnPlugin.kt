@@ -107,8 +107,20 @@ class VpnPlugin :
             "setSettings" -> {
                 val mode = call.argument<Int>("mode") ?: SplitTunnelStore.MODE_ALL_APPS
                 val packages = call.argument<List<String>>("packages") ?: emptyList()
-                SplitTunnelStore.save(appContext, mode, packages.toSet())
-                result.success(null)
+                backgroundExecutor.execute {
+                    val saved = SplitTunnelStore.save(appContext, mode, packages.toSet())
+                    mainHandler.post {
+                        if (saved) {
+                            result.success(null)
+                        } else {
+                            result.error(
+                                "settings_save_error",
+                                "Failed to persist split-tunneling settings",
+                                null,
+                            )
+                        }
+                    }
+                }
             }
 
             else -> result.notImplemented()

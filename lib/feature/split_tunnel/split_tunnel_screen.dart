@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:trusttunnel/common/assets/asset_icons.dart';
 import 'package:trusttunnel/common/extensions/context_extensions.dart';
@@ -30,19 +28,14 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
   SplitTunnelMode _mode = SplitTunnelMode.allApps;
   Set<String> _selectedPackages = {};
 
-  // The last-saved state — used to detect unsaved changes.
-  SplitTunnelMode _savedMode = SplitTunnelMode.allApps;
-  Set<String> _savedPackages = {};
-
   List<InstalledApp>? _apps;
+  bool _settingsLoaded = false;
   bool _loadFailed = false;
   bool _saving = false;
+  bool _saveFailed = false;
+  bool _reconnectPromptShown = false;
+  int _saveRevision = 0;
   String _searchQuery = '';
-
-  bool get _hasUnsavedChanges =>
-      _mode != _savedMode ||
-      !_selectedPackages.containsAll(_savedPackages) ||
-      !_savedPackages.containsAll(_selectedPackages);
 
   @override
   void initState() {
@@ -53,13 +46,27 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
   Future<void> _load() async {
     try {
       final settings = await _manager.getSettings();
-      final apps = await _manager.getInstalledApps();
       if (!mounted) return;
+
       setState(() {
         _mode = settings.mode;
         _selectedPackages = {...settings.packages};
-        _savedMode = settings.mode;
-        _savedPackages = {...settings.packages};
+        _settingsLoaded = true;
+        _loadFailed = false;
+      });
+    } on Object {
+      if (mounted) {
+        setState(() => _loadFailed = true);
+      }
+
+      return;
+    }
+
+    try {
+      final apps = await _manager.getInstalledApps();
+      if (!mounted) return;
+
+      setState(() {
         _apps = apps;
         _loadFailed = false;
       });
@@ -71,38 +78,47 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
   }
 
   Future<void> _save() async {
-    if (!_hasUnsavedChanges || _saving) return;
-    setState(() => _saving = true);
+    if (!_settingsLoaded) return;
+
+    final revision = ++_saveRevision;
+    final settings = SplitTunnelSettings(
+      mode: _mode,
+      packages: {..._selectedPackages},
+    );
+
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
+
     try {
-      await _manager.setSettings(
-        SplitTunnelSettings(
-          mode: _mode,
-          packages: _selectedPackages,
-        ),
-      );
-      if (!mounted) return;
+      await _manager.setSettings(settings);
+      if (!mounted || revision != _saveRevision) return;
+
       setState(() {
-        _savedMode = _mode;
-        _savedPackages = {..._selectedPackages};
+        _saving = false;
+        _saveFailed = false;
       });
-      context.showInfoSnackBar(message: context.ln.changesSavedSnackbar);
       _promptReconnectIfConnected();
     } on Object {
-      if (mounted) {
-        context.showInfoSnackBar(message: context.ln.appsLoadError);
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (!mounted || revision != _saveRevision) return;
+
+      setState(() {
+        _saving = false;
+        _saveFailed = true;
+      });
+      context.showInfoSnackBar(message: context.ln.splitTunnelingSaveError);
     }
   }
 
   /// Split rules only take effect when the tunnel is (re)built, so when a change
   /// is made while connected we offer to reconnect immediately.
   void _promptReconnectIfConnected() {
-    if (!mounted) return;
+    if (!mounted || _reconnectPromptShown) return;
     final vpn = VpnScope.vpnControllerMaybeOf(context, listen: false);
     if (vpn == null || vpn.state != VpnState.connected) return;
 
+    _reconnectPromptShown = true;
     context.showInfoSnackBar(
       message: context.ln.splitTunnelingReconnect,
       action: SnackBarAction(
@@ -121,17 +137,22 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
       (element) => element.id == server.serverData.routingProfileId,
     );
 
-    await vpn.stop();
-    await vpn.start(
-      server: server,
-      routingProfile: routingProfile,
-      excludedRoutes: excludedRoutes,
-    );
+    try {
+      await vpn.stop();
+      await vpn.start(
+        server: server,
+        routingProfile: routingProfile,
+        excludedRoutes: excludedRoutes,
+      );
+    } finally {
+      _reconnectPromptShown = false;
+    }
   }
 
   void _setMode(SplitTunnelMode mode) {
     if (_mode == mode) return;
     setState(() => _mode = mode);
+    _save();
   }
 
   void _togglePackage(String packageName) {
@@ -140,6 +161,7 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
         _selectedPackages.add(packageName);
       }
     });
+    _save();
   }
 
   @override
@@ -163,6 +185,15 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
       child: Scaffold(
         appBar: CustomAppBar(
           title: context.ln.splitTunneling,
+          actions: [
+            _SaveStatus(
+              visible: _settingsLoaded,
+              saving: _saving,
+              failed: _saveFailed,
+              onRetry: _save,
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: Column(
           children: [
@@ -199,7 +230,6 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
             ),
 
             if (selectionEnabled) ...[
-              const Divider(height: 1),
               // ─── Search bar ──────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
@@ -211,7 +241,7 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
                           hintText: context.ln.searchApps,
                           isDense: true,
                           prefixIcon: Icon(
-                            AssetIcons.sort,
+                            Icons.search_rounded,
                             size: 18,
                             color: context.colors.neutralDark,
                           ),
@@ -232,18 +262,6 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
             // ─── App list ────────────────────────────────────────
             Expanded(
               child: _buildAppList(context, apps, filteredApps, selectionEnabled),
-            ),
-
-            // ─── Save button (shown only when there are unsaved changes) ─
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              child: _hasUnsavedChanges
-                  ? _SaveBar(
-                      saving: _saving,
-                      onSave: _save,
-                    )
-                  : const SizedBox.shrink(),
             ),
           ],
         ),
@@ -270,7 +288,10 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(
+              onPressed: _load,
+              child: Text(context.ln.retry),
+            ),
           ],
         ),
       );
@@ -292,7 +313,7 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'All apps use the VPN',
+              context.ln.splitTunnelingAllAppsActive,
               style: context.textTheme.bodyMedium?.copyWith(
                 color: context.colors.neutralDark,
               ),
@@ -305,7 +326,7 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
     if (filteredApps.isEmpty) {
       return Center(
         child: Text(
-          'No apps found',
+          context.ln.noAppsFound,
           style: context.textTheme.bodyMedium?.copyWith(
             color: context.colors.neutralDark,
           ),
@@ -318,10 +339,12 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
     final systemApps = filteredApps.where((a) => a.isSystem).toList();
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 104),
       children: [
         if (userApps.isNotEmpty) ...[
-          _SectionHeader(title: 'Apps (${userApps.length})'),
+          _SectionHeader(
+            title: context.ln.splitTunnelingAppsSection(userApps.length),
+          ),
           for (final app in userApps)
             _AppTile(
               app: app,
@@ -330,7 +353,9 @@ class _SplitTunnelScreenState extends State<SplitTunnelScreen> {
             ),
         ],
         if (systemApps.isNotEmpty) ...[
-          _SectionHeader(title: 'System (${systemApps.length})'),
+          _SectionHeader(
+            title: context.ln.splitTunnelingSystemAppsSection(systemApps.length),
+          ),
           for (final app in systemApps)
             _AppTile(
               app: app,
@@ -356,66 +381,38 @@ class _ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.theme.brightness == Brightness.dark;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                (isDark ? Colors.white : context.colors.accent).withValues(alpha: isDark ? 0.12 : 0.08),
-                (isDark ? Colors.white : context.colors.accent).withValues(alpha: isDark ? 0.04 : 0.02),
-              ],
+    return Material(
+      color: context.colors.backgroundAdditional,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            _ModeTile(
+              icon: AssetIcons.locationOn,
+              title: context.ln.splitTunnelingAllApps,
+              subtitle: context.ln.splitTunnelingAllAppsDescription,
+              selected: mode == SplitTunnelMode.allApps,
+              onTap: () => onModeChanged(SplitTunnelMode.allApps),
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: isDark ? 0.14 : 0.4),
+            const SizedBox(height: 4),
+            _ModeTile(
+              icon: AssetIcons.checkBoxFilled,
+              title: context.ln.splitTunnelingOnlySelected,
+              subtitle: context.ln.splitTunnelingOnlySelectedDescription,
+              selected: mode == SplitTunnelMode.onlySelected,
+              onTap: () => onModeChanged(SplitTunnelMode.onlySelected),
             ),
-          ),
-          child: Column(
-            children: [
-              _ModeTile(
-                icon: AssetIcons.locationOn,
-                title: context.ln.splitTunnelingAllApps,
-                subtitle: context.ln.splitTunnelingAllAppsDescription,
-                selected: mode == SplitTunnelMode.allApps,
-                isFirst: true,
-                isLast: false,
-                onTap: () => onModeChanged(SplitTunnelMode.allApps),
-              ),
-              Divider(
-                height: 1,
-                color: Colors.white.withValues(alpha: isDark ? 0.1 : 0.3),
-              ),
-              _ModeTile(
-                icon: AssetIcons.checkBoxFilled,
-                title: context.ln.splitTunnelingOnlySelected,
-                subtitle: context.ln.splitTunnelingOnlySelectedDescription,
-                selected: mode == SplitTunnelMode.onlySelected,
-                isFirst: false,
-                isLast: false,
-                onTap: () => onModeChanged(SplitTunnelMode.onlySelected),
-              ),
-              Divider(
-                height: 1,
-                color: Colors.white.withValues(alpha: isDark ? 0.1 : 0.3),
-              ),
-              _ModeTile(
-                icon: AssetIcons.locationOff,
-                title: context.ln.splitTunnelingAllExcept,
-                subtitle: context.ln.splitTunnelingAllExceptDescription,
-                selected: mode == SplitTunnelMode.allExceptSelected,
-                isFirst: false,
-                isLast: true,
-                onTap: () => onModeChanged(SplitTunnelMode.allExceptSelected),
-              ),
-            ],
-          ),
+            const SizedBox(height: 4),
+            _ModeTile(
+              icon: AssetIcons.locationOff,
+              title: context.ln.splitTunnelingAllExcept,
+              subtitle: context.ln.splitTunnelingAllExceptDescription,
+              selected: mode == SplitTunnelMode.allExceptSelected,
+              onTap: () => onModeChanged(SplitTunnelMode.allExceptSelected),
+            ),
+          ],
         ),
       ),
     );
@@ -427,8 +424,6 @@ class _ModeTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool selected;
-  final bool isFirst;
-  final bool isLast;
   final VoidCallback onTap;
 
   const _ModeTile({
@@ -436,8 +431,6 @@ class _ModeTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.selected,
-    required this.isFirst,
-    required this.isLast,
     required this.onTap,
   });
 
@@ -447,19 +440,13 @@ class _ModeTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.vertical(
-        top: isFirst ? const Radius.circular(20) : Radius.zero,
-        bottom: isLast ? const Radius.circular(20) : Radius.zero,
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: selected ? accent.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: BorderRadius.vertical(
-            top: isFirst ? const Radius.circular(20) : Radius.zero,
-            bottom: isLast ? const Radius.circular(20) : Radius.zero,
-          ),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
           children: [
@@ -528,48 +515,65 @@ class _AppTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    dense: true,
-    leading: app.icon.isEmpty
-        ? Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: context.colors.neutralLight.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(AssetIcons.settings, size: 20, color: context.colors.neutralDark),
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.memory(
-              app.icon,
-              width: 36,
-              height: 36,
-              gaplessPlayback: true,
-            ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+    child: Material(
+      color: checked ? context.colors.accent.withValues(alpha: 0.08) : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: app.icon.isEmpty
+            ? Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: context.colors.neutralLight.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  AssetIcons.settings,
+                  size: 20,
+                  color: context.colors.neutralDark,
+                ),
+              )
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(
+                  app.icon,
+                  width: 40,
+                  height: 40,
+                  gaplessPlayback: true,
+                ),
+              ),
+        title: Text(
+          app.name,
+          style: context.textTheme.bodyLarge?.copyWith(
+            fontWeight: checked ? FontWeight.w600 : FontWeight.normal,
           ),
-    title: Text(
-      app.name,
-      style: context.textTheme.bodyLarge,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    ),
-    subtitle: Text(
-      app.packageName,
-      style: context.textTheme.bodySmall,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    ),
-    trailing: AnimatedSwitcher(
-      duration: const Duration(milliseconds: 150),
-      child: Icon(
-        key: ValueKey(checked),
-        checked ? AssetIcons.checkBoxFilled : AssetIcons.checkBox,
-        color: checked ? context.colors.accent : context.colors.neutralLight,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          app.packageName,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.neutralDark,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          child: Icon(
+            checked ? AssetIcons.checkBoxFilled : AssetIcons.checkBox,
+            key: ValueKey(checked),
+            color: checked ? context.colors.accent : context.colors.neutralLight,
+          ),
+        ),
+        onTap: onTap,
       ),
     ),
-    onTap: onTap,
   );
 }
 
@@ -609,10 +613,9 @@ class _CountBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.accent.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: context.colors.accent.withValues(alpha: 0.4)),
       ),
       child: Text(
-        '$count selected',
+        context.ln.selectedAppsCount(count),
         style: context.textTheme.labelSmall?.copyWith(
           color: context.colors.accent,
           fontWeight: FontWeight.w600,
@@ -622,57 +625,59 @@ class _CountBadge extends StatelessWidget {
   );
 }
 
-// ─── Save bar ──────────────────────────────────────────────────────────────
+// ─── Auto-save status ──────────────────────────────────────────────────────
 
-class _SaveBar extends StatelessWidget {
+class _SaveStatus extends StatelessWidget {
+  final bool visible;
   final bool saving;
-  final VoidCallback onSave;
+  final bool failed;
+  final VoidCallback onRetry;
 
-  const _SaveBar({required this.saving, required this.onSave});
+  const _SaveStatus({
+    required this.visible,
+    required this.saving,
+    required this.failed,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.theme.brightness == Brightness.dark;
+    if (!visible) return const SizedBox(width: 40);
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            12,
-            16,
-            12 + MediaQuery.paddingOf(context).bottom,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                (isDark ? Colors.black : Colors.white).withValues(alpha: isDark ? 0.5 : 0.7),
-                (isDark ? Colors.black : Colors.white).withValues(alpha: isDark ? 0.7 : 0.9),
-              ],
-            ),
-            border: Border(
-              top: BorderSide(
-                color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.5),
-              ),
+    if (saving) {
+      return Tooltip(
+        message: context.ln.savingChanges,
+        child: const SizedBox.square(
+          dimension: 40,
+          child: Center(
+            child: SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: saving ? null : onSave,
-              icon: saving
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Icon(AssetIcons.check, size: 18),
-              label: Text(saving ? 'Saving…' : context.ln.save),
-            ),
-          ),
+        ),
+      );
+    }
+
+    if (failed) {
+      return IconButton(
+        tooltip: context.ln.retrySave,
+        onPressed: onRetry,
+        icon: Icon(
+          AssetIcons.error,
+          color: context.colors.error,
+        ),
+      );
+    }
+
+    return Tooltip(
+      message: context.ln.savedAutomatically,
+      child: SizedBox.square(
+        dimension: 40,
+        child: Icon(
+          AssetIcons.checkSmall,
+          size: 20,
+          color: context.colors.accent,
         ),
       ),
     );

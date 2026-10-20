@@ -295,8 +295,11 @@ class SplitTunnelVpnService : android.net.VpnService(), VpnClientListener {
             SplitTunnelStore.MODE_ONLY_SELECTED -> {
                 val allowed = packages.filter { it != ownPackage && isPackageInstalled(it) }
                 if (allowed.isEmpty()) {
-                    LOG.info("Split tunneling: no selected apps installed, tunneling everything")
-                    builder.addDisallowedApplication(ownPackage)
+                    // An empty allow-list on Android means "all applications".
+                    // Allow only our own package instead; the transport socket
+                    // itself is protected, so no other app is routed into VPN.
+                    LOG.info("Split tunneling: no selected apps installed, tunneling no apps")
+                    builder.addAllowedApplication(ownPackage)
                     return
                 }
                 LOG.info("Split tunneling: VPN only for ${allowed.size} app(s)")
